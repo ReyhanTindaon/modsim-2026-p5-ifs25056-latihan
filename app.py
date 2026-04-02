@@ -44,7 +44,7 @@ st.markdown("""
 # ===============================
 with st.sidebar:
     # --- Identitas Pemilik ---
-    st.image("https://github.com/ReyhanTindaon.png", width=100) # Otomatis ambil foto GitHub kamu
+    st.image("https://github.com/ReyhanTindaon.png", width=100) 
     st.title("Reyhan Tindaon")
     st.markdown("""
         <div style="margin-top: -15px; margin-bottom: 20px;">
@@ -95,20 +95,29 @@ with st.sidebar:
 st.markdown("""
     <div style="background-color:#1E1E1E; padding:30px; border-radius:20px; margin-bottom:30px; text-align:center">
         <h1 style="color:white; margin:0;">🏗️ Gedung FITE Simulation</h1>
-        <p style="color:#BBBBBB; font-size:1.1em;">Optimized Project Intelligence Dashboard v3.0</p>
+        <p style="color:#BBBBBB; font-size:1.1em;">Optimized Project Intelligence Dashboard v3.5</p>
     </div>
     """, unsafe_allow_html=True)
 
+# --- LOGIKA PENYIMPANAN DATA (SESSION STATE) ---
 if run_sim:
-    # --- PROSES SIMULASI ---
+    # Proses Kalkulasi
     df_input = pd.DataFrame.from_dict(user_inputs, orient='index', columns=["Opt", "Norm", "Pes"]).reset_index()
-    
     opt_arr = df_input["Opt"].values
     norm_arr = df_input["Norm"].values
     pes_arr = df_input["Pes"].values
     
-    sim_matrix = np.random.triangular(left=opt_arr, mode=norm_arr, right=pes_arr, size=(jumlah_simulasi, len(tahapan)))
-    hasil = sim_matrix.sum(axis=1)
+    # Simpan hasil ke session state agar tidak hilang saat pindah TAB
+    st.session_state['sim_matrix'] = np.random.triangular(left=opt_arr, mode=norm_arr, right=pes_arr, size=(jumlah_simulasi, len(tahapan)))
+    st.session_state['hasil'] = st.session_state['sim_matrix'].sum(axis=1)
+    st.session_state['tahapan'] = tahapan
+    st.session_state['sudah_simulasi'] = True
+
+# --- TAMPILKAN HASIL JIKA SUDAH PERNAH SIMULASI ---
+if st.session_state.get('sudah_simulasi'):
+    hasil = st.session_state['hasil']
+    sim_matrix = st.session_state['sim_matrix']
+    tahapan_list = st.session_state['tahapan']
 
     # --- ROW 1: METRICS ---
     m1, m2, m3, m4 = st.columns(4)
@@ -119,14 +128,14 @@ if run_sim:
 
     st.markdown("###")
 
-    # --- ROW 2: TABS ---
+    # --- ROW 2: TABS (Data Aman Karena Session State) ---
     t1, t2 = st.tabs(["📈 Analisis Probabilitas (Kurva S)", "⚠️ Analisis Jalur Kritis (Tornado Chart)"])
 
     with t1:
         c_left, c_right = st.columns([2, 1])
         with c_left:
             sorted_hasil = np.sort(hasil)
-            probs = np.arange(1, jumlah_simulasi + 1) / jumlah_simulasi
+            probs = np.arange(1, len(hasil) + 1) / len(hasil)
             
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=sorted_hasil, y=probs, mode='lines', 
@@ -155,9 +164,8 @@ if run_sim:
 
     with t2:
         risk_vals = np.std(sim_matrix, axis=0)
-        df_risk = pd.DataFrame({"Tahap": tahapan, "Risk": risk_vals}).sort_values("Risk", ascending=True)
+        df_risk = pd.DataFrame({"Tahap": tahapan_list, "Risk": risk_vals}).sort_values("Risk", ascending=True)
         
-        # Tornado Chart yang sudah diperbaiki (Anti-Error)
         fig_tornado = px.bar(df_risk, x="Risk", y="Tahap", orientation='h',
                              title="Tornado Chart: Tahapan Paling Kritis",
                              color="Risk", color_continuous_scale="Reds",
@@ -165,13 +173,14 @@ if run_sim:
         
         fig_tornado.update_layout(showlegend=False, coloraxis_showscale=False, bargap=0.4)
         st.plotly_chart(fig_tornado, use_container_width=True)
-        st.warning("Semakin merah dan panjang bar, semakin besar pengaruh tahap tersebut pada ketidakpastian durasi proyek.")
+        st.warning("Ganti TAB sekarang nggak bakal bikin hasil simulasimu hilang!")
 
 else:
+    # Tampilan Awal Sebelum Simulasi
     col_a, col_b = st.columns(2)
     with col_a:
         st.subheader("Studi Kasus Gedung FITE")
-        st.write("Gedung 5 lantai dengan fasilitas lab khusus VR/AR dan Game. Simulasi ini membantu memprediksi waktu penyelesaian di tengah ketidakpastian.")
+        st.write("Prediksi waktu pembangunan lab VR/AR & Game 5 lantai. Gunakan simulasi Monte Carlo untuk menghitung resiko ketidakpastian.")
     with col_b:
         st.subheader("Instruksi")
-        st.write("Silakan atur durasi pengerjaan di panel kiri dan tekan tombol JALANKAN SIMULASI.")
+        st.info("Input durasi di sebelah kiri, lalu tekan tombol **🚀 JALANKAN SIMULASI** untuk memunculkan grafik.")
