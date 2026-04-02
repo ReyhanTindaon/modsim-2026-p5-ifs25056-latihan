@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 # ===============================
 st.set_page_config(page_title="FITE Construction Dashboard", page_icon="🏗️", layout="wide")
 
-# Custom CSS agar tampilan modern dan tidak polos
+# Custom CSS agar tampilan modern
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
@@ -36,25 +36,31 @@ st.markdown("""
         width: 100%; 
     }
     div.stButton > button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 75, 75, 0.5); }
-    
-    .streamlit-expanderHeader { background-color: white !important; border-radius: 8px !important; }
     </style>
     """, unsafe_allow_html=True)
 
 # ===============================
-# SIDEBAR (KONFIGURASI)
+# SIDEBAR (PROFIL & KONFIGURASI)
 # ===============================
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/4342/4342728.png", width=80)
-    st.title("Control Panel")
+    # --- Identitas Pemilik ---
+    st.image("https://github.com/ReyhanTindaon.png", width=100) # Otomatis ambil foto GitHub kamu
+    st.title("Reyhan Tindaon")
+    st.markdown("""
+        <div style="margin-top: -15px; margin-bottom: 20px;">
+            <a href="https://github.com/ReyhanTindaon" target="_blank" style="text-decoration: none; color: #FF4B4B; font-weight: bold;">
+                🔗 github.com/ReyhanTindaon
+            </a>
+        </div>
+    """, unsafe_allow_html=True)
     
+    st.markdown("---")
     st.subheader("⚙️ Simulation Settings")
     jumlah_simulasi = st.select_slider("Jumlah Iterasi:", options=[1000, 5000, 10000, 20000, 50000], value=20000)
     
     st.markdown("---")
     st.subheader("📋 Project Stages (Bulan)")
     
-    # Tahapan sesuai studi kasus Gedung FITE
     tahapan = [
         "Perencanaan & Desain Lab", "Pekerjaan Struktur (5 Lantai)", 
         "Material Teknis Khusus", "Instalasi MEP & Listrik", 
@@ -94,14 +100,13 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 if run_sim:
-    # --- PROSES SIMULASI (VEKTOR - ANTI LEMOT) ---
+    # --- PROSES SIMULASI ---
     df_input = pd.DataFrame.from_dict(user_inputs, orient='index', columns=["Opt", "Norm", "Pes"]).reset_index()
     
     opt_arr = df_input["Opt"].values
     norm_arr = df_input["Norm"].values
     pes_arr = df_input["Pes"].values
     
-    # Generate Matrix simulasi sekaligus
     sim_matrix = np.random.triangular(left=opt_arr, mode=norm_arr, right=pes_arr, size=(jumlah_simulasi, len(tahapan)))
     hasil = sim_matrix.sum(axis=1)
 
@@ -120,7 +125,6 @@ if run_sim:
     with t1:
         c_left, c_right = st.columns([2, 1])
         with c_left:
-            # Membuat Kurva S
             sorted_hasil = np.sort(hasil)
             probs = np.arange(1, jumlah_simulasi + 1) / jumlah_simulasi
             
@@ -131,7 +135,7 @@ if run_sim:
                                     name='Probabilitas Kumulatif'))
             
             fig.update_layout(title="Kurva S: Probabilitas Akumulasi Penyelesaian",
-                             xaxis_title="Total Bulan", yaxis_title="Persentase Peluang (%)",
+                             xaxis_title="Total Bulan", yaxis_title="Peluang (%)",
                              yaxis_tickformat='.0%', template="plotly_white")
             st.plotly_chart(fig, use_container_width=True)
             
@@ -150,31 +154,24 @@ if run_sim:
                 st.write(f"{p:.1f}%")
 
     with t2:
-        # Analisis Sensitivitas untuk Tornado Chart
         risk_vals = np.std(sim_matrix, axis=0)
         df_risk = pd.DataFrame({"Tahap": tahapan, "Risk": risk_vals}).sort_values("Risk", ascending=True)
         
-        # Tornado Chart menggunakan plotly express agar lebih aman dari error atribut
+        # Tornado Chart yang sudah diperbaiki (Anti-Error)
         fig_tornado = px.bar(df_risk, x="Risk", y="Tahap", orientation='h',
-                             title="Tornado Chart: Tahapan Paling Kritis (Berdasarkan Resiko)",
+                             title="Tornado Chart: Tahapan Paling Kritis",
                              color="Risk", color_continuous_scale="Reds",
-                             labels={"Risk": "Tingkat Variansi (Resiko)"},
                              template="plotly_white")
         
-        # Perbaikan error: menggunakan update_layout untuk pengaturan axis
-        fig_tornado.update_layout(coloraxis_showscale=False, bargap=0.4)
+        fig_tornado.update_layout(showlegend=False, coloraxis_showscale=False, bargap=0.4)
         st.plotly_chart(fig_tornado, use_container_width=True)
-        st.warning("Semakin merah dan panjang bar, semakin kritis tahap tersebut menentukan durasi total proyek.")
+        st.warning("Semakin merah dan panjang bar, semakin besar pengaruh tahap tersebut pada ketidakpastian durasi proyek.")
 
 else:
-    # Tampilan awal jika belum di-run
     col_a, col_b = st.columns(2)
     with col_a:
         st.subheader("Studi Kasus Gedung FITE")
-        st.write("""
-        Gedung 5 lantai dengan fasilitas laboratorium khusus (VR/AR, Game, Elektro).
-        Dashboard ini menjawab ketidakpastian cuaca dan teknis menggunakan simulasi Monte Carlo.
-        """)
+        st.write("Gedung 5 lantai dengan fasilitas lab khusus VR/AR dan Game. Simulasi ini membantu memprediksi waktu penyelesaian di tengah ketidakpastian.")
     with col_b:
         st.subheader("Instruksi")
-        st.write("Atur durasi Optimistik, Most Likely, dan Pesimistis di panel kiri, lalu klik tombol merah.")
+        st.write("Silakan atur durasi pengerjaan di panel kiri dan tekan tombol JALANKAN SIMULASI.")
